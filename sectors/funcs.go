@@ -2,6 +2,7 @@ package sectors
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/CyrusRoshan/Golf/utils"
 )
@@ -10,6 +11,21 @@ type Func struct {
 	Width float64
 	F     func(float64) float64
 	Df    func(float64) float64
+}
+
+func CalculateReflectionAngle(vx float64, vy float64, slope float64) (newVx float64, newVy float64) {
+	slopeAngle := math.Atan(slope)
+	vAngle := math.Atan(vy / vx)
+
+	newVangle := (slopeAngle + 180 - vAngle) + slopeAngle
+	newUnscaledVx := math.Cos(newVangle)
+	newUnscaledVy := math.Sin(newVangle)
+
+	scaleMultiple := math.Sqrt(math.Pow(vx, 2) + math.Pow(vy, 2))
+	newVx = newUnscaledVx * scaleMultiple
+	newVy = newUnscaledVy * scaleMultiple
+
+	return newVx, newVy
 }
 
 func RandLineFuncConstrained(minSlope float64, maxSlope float64, minHeight float64, maxHeight float64, intercept float64, width float64) Func {

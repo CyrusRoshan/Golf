@@ -11,6 +11,7 @@ import (
 
 const (
 	NEARBY_SECTORS = 1
+	SCALE          = 1
 )
 
 type Game struct {
@@ -31,7 +32,7 @@ func NewGame(win *pixelgl.Window) *Game {
 		window: win,
 		canvas: screen.NewCanvas(screen.ScreenBounds()),
 	}
-	g.canvas.SetMatrix(pixel.IM.Moved(g.canvas.Bounds().Min).Scaled(pixel.ZV, 0.5))
+	g.canvas.SetMatrix(pixel.IM.Moved(g.canvas.Bounds().Min).Scaled(pixel.ZV, SCALE))
 	g.width = g.canvas.Bounds().W()
 	g.height = g.canvas.Bounds().H()
 
