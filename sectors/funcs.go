@@ -56,3 +56,23 @@ func NewLineFunc(slope float64, intercept float64) Func {
 		Df: df,
 	}
 }
+
+func NewSinFunc(waveLength float64, waveHeight float64, offset float64, intercept float64, onlyPositive bool) Func {
+	fWithoutOffset := func(x float64) float64 {
+		return math.Sin(math.Pi*(x/waveLength+offset)) * waveHeight
+	}
+
+	interceptDiff := intercept - fWithoutOffset(0)
+	f := func(x float64) float64 {
+		return fWithoutOffset(x) + interceptDiff
+	}
+
+	df := func(x float64) float64 {
+		return math.Sin(math.Pi*(x/waveLength+offset)) * waveHeight * math.Pi / waveLength
+	}
+
+	return Func{
+		F:  f,
+		Df: df,
+	}
+}
