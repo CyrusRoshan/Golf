@@ -13,9 +13,8 @@ import (
 )
 
 const (
-	NEARBY_SECTORS = 1
-	SCALE          = 0.5
-	TIME_SCALE     = 3.0
+	DEBUG_SCALE = 0.7
+	TIME_SCALE  = 3.0
 )
 
 type Game struct {
@@ -36,14 +35,13 @@ type Game struct {
 
 func NewGame(win *pixelgl.Window) *Game {
 	canvas := screen.NewCanvas(screen.ScreenBounds())
-	canvas.SetMatrix(pixel.IM.Moved(canvas.Bounds().Min).Scaled(pixel.ZV, SCALE))
+	canvas.SetMatrix(pixel.IM.Moved(canvas.Bounds().Min).Scaled(pixel.ZV, DEBUG_SCALE))
 
 	g := Game{
 		window: win,
 		canvas: canvas,
 
 		lastHitTime: time.Now(),
-		golfBall:    ball.NewBall(10, 100),
 
 		width:  canvas.Bounds().W(),
 		height: canvas.Bounds().H(),
@@ -51,10 +49,14 @@ func NewGame(win *pixelgl.Window) *Game {
 
 	sectors.MIN_SEGMENT_WIDTH = g.width / 20
 	sectors.MAX_SEGMENT_WIDTH = g.width / 4
+	sectors.MAX_STRUCTURE_HEIGHT = g.height - sectors.STRUCTURE_CEILING_GAP
 
 	// set up sectors
-	currentSector := sectors.GenerateSector(g.width, g.height-sectors.STRUCTURE_CEILING_GAP, 10, colornames.Orange)
+	currentSector := sectors.GenerateSector(g.width, sectors.MAX_STRUCTURE_HEIGHT, 10, colornames.Orange)
 	g.currentSector = &currentSector
+
+	// set up ball
+	g.golfBall = ball.NewBall(sectors.MIN_SEGMENT_WIDTH, sectors.MAX_STRUCTURE_HEIGHT)
 
 	return &g
 }

@@ -8,14 +8,14 @@ import (
 	"github.com/faiface/pixel/pixelgl"
 )
 
-const CANVAS_SCALE = 5
+const CANVAS_SCALE = 1
 
 func ScreenBounds() (width float64, height float64) {
 	return pixelgl.PrimaryMonitor().Size()
 }
 
 func NewCanvas(width float64, height float64) (canvas *pixelgl.Canvas) {
-	scaleRect := pixel.R(-width/CANVAS_SCALE, -height/CANVAS_SCALE, width/CANVAS_SCALE, height/CANVAS_SCALE)
+	scaleRect := pixel.R(-width*CANVAS_SCALE, -height*CANVAS_SCALE, width*CANVAS_SCALE, height*CANVAS_SCALE)
 
 	canvas = pixelgl.NewCanvas(scaleRect)
 	canvas.SetMatrix(pixel.IM)

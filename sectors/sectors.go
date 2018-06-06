@@ -11,14 +11,17 @@ import (
 )
 
 const (
+	SECTOR_LINE_WIDTH     = 10
 	STRUCTURE_CEILING_GAP = 20.0
-	MIN_STRUCTURE_HEIGHT  = 0.0
-	SECTOR_LINE_WIDTH     = 5
+
+	MIN_STRUCTURE_HEIGHT = 0.0
 )
 
 var (
 	MIN_SEGMENT_WIDTH float64
 	MAX_SEGMENT_WIDTH float64
+
+	MAX_STRUCTURE_HEIGHT float64
 )
 
 type Sector struct {

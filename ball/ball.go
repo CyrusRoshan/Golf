@@ -45,13 +45,8 @@ func NewBall(x float64, y float64) Ball {
 }
 
 func (b *Ball) Draw(time float64, t pixel.Target) {
-	movedVec := pixel.V(b.physics.X(time), b.physics.Y(time))
+	movedVec := pixel.V(b.X(time), b.Y(time))
 	b.sprite.Draw(t, pixel.IM.Moved(movedVec))
-}
-
-func (b *Ball) TeleportOver(dx, dy float64) {
-	b.initialX += dx
-	b.initialY += dy
 }
 
 func (b *Ball) UpdateTrajectoryAtPoint(vx, vy, time float64) {
@@ -95,8 +90,8 @@ func (b *Ball) Y(time float64) float64 {
 func (b *Ball) CollidesWith(f sectors.Func, timePrecision float64) (doesCollide bool, dt float64) {
 	var ballX float64
 	for dt = 0; ballX <= f.Range.EndX; dt += 1 {
-		ballX = b.physics.X(dt)
-		ballY := b.physics.Y(dt)
+		ballX = b.X(dt)
+		ballY := b.Y(dt)
 
 		pathY := f.F(ballX)
 
@@ -105,8 +100,8 @@ func (b *Ball) CollidesWith(f sectors.Func, timePrecision float64) (doesCollide 
 
 			minDt := dt - 1
 			for ; dt > minDt; dt -= timePrecision {
-				ballX := b.physics.X(dt)
-				ballY := b.physics.Y(dt)
+				ballX := b.X(dt)
+				ballY := b.Y(dt)
 
 				pathY := f.F(ballX)
 
