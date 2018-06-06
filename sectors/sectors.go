@@ -4,7 +4,8 @@ import (
 	"image/color"
 	"math"
 
-	"github.com/CyrusRoshan/Golf/utils"
+	"github.com/CyrusRoshan/Golf/mathutils"
+
 	"github.com/faiface/pixel"
 	"github.com/faiface/pixel/imdraw"
 )
@@ -27,20 +28,28 @@ type Sector struct {
 	Polygons []*imdraw.IMDraw
 }
 
-func GenerateSector(width float64, maxHeight float64, maxSegments int, color color.Color) (s Sector) {
-	s.Width = width
+func GenerateSector(sectorWidth float64, maxHeight float64, maxSegments int, color color.Color) (s Sector) {
+	s.Width = sectorWidth
 	s.Color = color
 
 	currentLength := 0.0
 	currentHeight := 50.0
 
-	segmentWidths := generateSegmentWidths(maxSegments, width)
-	for _, sectorWidth := range segmentWidths {
-		newFunc := RandLineFuncConstrained(-1.5, 1.5, MIN_STRUCTURE_HEIGHT, maxHeight, currentHeight, sectorWidth)
-		newFunc.Width = sectorWidth
+	segmentWidths := generateSegmentWidths(maxSegments, sectorWidth)
+	for _, width := range segmentWidths {
+		unconstrainedSlope := mathutils.RandFloat(-1.5, 1.5)
 
-		currentLength += sectorWidth
-		currentHeight = newFunc.F(sectorWidth)
+		var slope float64
+		if mathutils.RandFloat(0, 1) < 0.3 {
+			slope = 0
+		} else {
+			slope = mathutils.ConstrainLineSlope(unconstrainedSlope, currentHeight, width, MIN_STRUCTURE_HEIGHT, maxHeight)
+		}
+
+		newFunc := NewRangedLineFunc(slope, currentLength, currentLength+width, currentHeight)
+
+		currentLength += width
+		currentHeight = newFunc.F(width)
 		s.Funcs = append(s.Funcs, newFunc)
 	}
 
@@ -49,43 +58,39 @@ func GenerateSector(width float64, maxHeight float64, maxSegments int, color col
 }
 
 func generateSegmentWidths(maxSegments int, maxWidth float64) (widths []float64) {
+	remainingLength := maxWidth
+
 	for i := 0; i < maxSegments-1; i++ {
 		var width float64
 
-		if maxWidth > MIN_SEGMENT_WIDTH {
-			width = utils.RandFloat(MIN_SEGMENT_WIDTH, math.Min(maxWidth, MAX_SEGMENT_WIDTH))
-		} else if maxWidth > 0 {
-			width = maxWidth
+		if remainingLength > MIN_SEGMENT_WIDTH {
+			width = mathutils.RandFloat(MIN_SEGMENT_WIDTH, math.Min(maxWidth, MAX_SEGMENT_WIDTH))
+			remainingLength -= width
+
+			if remainingLength <= MIN_SEGMENT_WIDTH {
+				width += remainingLength
+				remainingLength = 0
+			}
 		} else {
 			break
 		}
 
 		widths = append(widths, width)
-		maxWidth -= width
 	}
 
 	return widths
 }
 
 func triangulateSector(s Sector) (polygons []*imdraw.IMDraw) {
-	position := 0.0
 	for _, segment := range s.Funcs {
 		imd := imdraw.New(nil)
 		imd.Color = s.Color
 
-		bottomRight := pixel.V(position+segment.Width, 0)
-		imd.Push(bottomRight)
+		imd.Push(pixel.V(segment.Range.StartX, segment.Range.StartY))
+		imd.Push(pixel.V(segment.Range.EndX, segment.Range.EndY))
+		imd.Push(pixel.V(segment.Range.EndX, 0))
+		imd.Push(pixel.V(segment.Range.StartX, 0))
 
-		bottomLeft := pixel.V(position, 0)
-		imd.Push(bottomLeft)
-
-		topLeft := pixel.V(position, segment.F(0))
-		imd.Push(topLeft)
-
-		topRight := pixel.V(position+segment.Width, segment.F(segment.Width))
-		imd.Push(topRight)
-
-		position += segment.Width
 		imd.Polygon(SECTOR_LINE_WIDTH)
 
 		polygons = append(polygons, imd)

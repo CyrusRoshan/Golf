@@ -11,7 +11,7 @@ import (
 
 const (
 	NEARBY_SECTORS = 1
-	SCALE          = 1
+	SCALE          = 0.5
 )
 
 type Game struct {

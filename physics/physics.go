@@ -33,3 +33,18 @@ func FrictionalForce(m, g float64) float64 {
 	n := m * g
 	return AssumedFrictionCoefficient * n
 }
+
+func CollisionReflectionAngle(vx, vy, slope float64) (newVx, newVy float64) {
+	slopeAngle := math.Atan(slope)
+	vAngle := math.Atan(vy / vx)
+
+	newVangle := (slopeAngle + 180 - vAngle) + slopeAngle
+	newUnscaledVx := math.Cos(newVangle)
+	newUnscaledVy := math.Sin(newVangle)
+
+	scaleMultiple := math.Sqrt(math.Pow(vx, 2) + math.Pow(vy, 2))
+	newVx = newUnscaledVx * scaleMultiple
+	newVy = newUnscaledVy * scaleMultiple
+
+	return newVx, newVy
+}
