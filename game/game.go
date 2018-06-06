@@ -1,6 +1,9 @@
 package game
 
 import (
+	"time"
+
+	"github.com/CyrusRoshan/Golf/ball"
 	"github.com/CyrusRoshan/Golf/screen"
 	"github.com/CyrusRoshan/Golf/sectors"
 	"golang.org/x/image/colornames"
@@ -12,6 +15,7 @@ import (
 const (
 	NEARBY_SECTORS = 1
 	SCALE          = 0.5
+	TIME_SCALE     = 3.0
 )
 
 type Game struct {
@@ -23,18 +27,27 @@ type Game struct {
 	width  float64
 	height float64
 
+	lastHitTime time.Time
+	golfBall    ball.Ball
+
 	currentSector *sectors.Sector
 	nextSector    *sectors.Sector
 }
 
 func NewGame(win *pixelgl.Window) *Game {
+	canvas := screen.NewCanvas(screen.ScreenBounds())
+	canvas.SetMatrix(pixel.IM.Moved(canvas.Bounds().Min).Scaled(pixel.ZV, SCALE))
+
 	g := Game{
 		window: win,
-		canvas: screen.NewCanvas(screen.ScreenBounds()),
+		canvas: canvas,
+
+		lastHitTime: time.Now(),
+		golfBall:    ball.NewBall(10, 100),
+
+		width:  canvas.Bounds().W(),
+		height: canvas.Bounds().H(),
 	}
-	g.canvas.SetMatrix(pixel.IM.Moved(g.canvas.Bounds().Min).Scaled(pixel.ZV, SCALE))
-	g.width = g.canvas.Bounds().W()
-	g.height = g.canvas.Bounds().H()
 
 	sectors.MIN_SEGMENT_WIDTH = g.width / 20
 	sectors.MAX_SEGMENT_WIDTH = g.width / 4
@@ -70,10 +83,9 @@ func (g *Game) DrawTransitions() {
 
 func (g *Game) DrawFrames() {
 	g.currentSector.Draw(g.canvas)
-	// for _, object := range drawSector.Objects {
-	// 	matrix := object.Physics.GetMatrix().Chained(sectorMatrix)
-	// 	object.Sprite.DrawColorMask(g.canvas, matrix, object.Color)
-	// }
 
-	// g.canvas.Draw(g.window, pixel.IM.Moved(g.canvas.Bounds().Center()))
+	dt := float64(time.Now().Sub(g.lastHitTime))
+	dtInSeconds := dt / float64(time.Second) * TIME_SCALE
+
+	g.golfBall.Draw(dtInSeconds, g.canvas)
 }
