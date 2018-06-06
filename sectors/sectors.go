@@ -27,7 +27,7 @@ var (
 type Sector struct {
 	Color    color.Color
 	Width    float64
-	Funcs    []Func
+	Segments []Segment
 	Polygons []*imdraw.IMDraw
 }
 
@@ -49,11 +49,11 @@ func GenerateSector(sectorWidth float64, maxHeight float64, maxSegments int, col
 			slope = mathutils.ConstrainLineSlope(unconstrainedSlope, currentHeight, width, MIN_STRUCTURE_HEIGHT, maxHeight)
 		}
 
-		newFunc := NewRangedLineFunc(slope, currentLength, currentLength+width, currentHeight)
+		newSegment := NewRangedLineSegment(slope, currentLength, currentLength+width, currentHeight)
 
-		currentLength = newFunc.Range.EndX
-		currentHeight = newFunc.Range.EndY
-		s.Funcs = append(s.Funcs, newFunc)
+		currentLength = newSegment.Range.EndX
+		currentHeight = newSegment.Range.EndY
+		s.Segments = append(s.Segments, newSegment)
 	}
 
 	s.Polygons = triangulateSector(s)
@@ -85,7 +85,7 @@ func generateSegmentWidths(maxSegments int, maxWidth float64) (widths []float64)
 }
 
 func triangulateSector(s Sector) (polygons []*imdraw.IMDraw) {
-	for _, segment := range s.Funcs {
+	for _, segment := range s.Segments {
 		imd := imdraw.New(nil)
 		imd.Color = s.Color
 

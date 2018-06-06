@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/CyrusRoshan/Golf/ball"
+	"github.com/CyrusRoshan/Golf/physics"
 	"github.com/CyrusRoshan/Golf/screen"
 	"github.com/CyrusRoshan/Golf/sectors"
 	"golang.org/x/image/colornames"
@@ -14,7 +15,7 @@ import (
 
 const (
 	DEBUG_SCALE = 0.7
-	TIME_SCALE  = 3.0
+	TIME_SCALE  = 7.0
 )
 
 type Game struct {
@@ -26,8 +27,12 @@ type Game struct {
 	width  float64
 	height float64
 
-	lastHitTime time.Time
-	golfBall    ball.Ball
+	lastHitTime         time.Time
+	collisionCalculated bool
+	collisionTime       float64
+	collisionSegment    *sectors.Segment
+
+	golfBall ball.Ball
 
 	currentSector *sectors.Sector
 	nextSector    *sectors.Sector
@@ -64,16 +69,24 @@ func NewGame(win *pixelgl.Window) *Game {
 func (g *Game) Run() {
 	for !g.window.Closed() {
 		screen.LimitFPS(30, func() {
-			screen.ScaleWindowToCanvas(g.window, g.canvas)
-			g.window.Clear(colornames.Red)
-			g.canvas.Clear(colornames.Black)
+			g.UpdateScreen()
 
-			g.DrawFrames()
+			dt := g.secondsSinceLastHit()
 
-			g.canvas.Draw(g.window, pixel.IM)
-			g.window.Update()
+			g.DoCalcualtions(dt)
+			g.DrawFrames(dt)
 		})
 	}
+}
+
+func (g *Game) UpdateScreen() {
+	screen.ScaleWindowToCanvas(g.window, g.canvas)
+
+	g.canvas.Draw(g.window, pixel.IM)
+	g.window.Update()
+
+	g.window.Clear(colornames.Red)
+	g.canvas.Clear(colornames.Black)
 }
 
 // TODO: Draw transition from current to next sector
@@ -83,11 +96,45 @@ func (g *Game) DrawTransitions() {
 	// sectorMatrix := pixel.IM.Moved(moveVec)
 }
 
-func (g *Game) DrawFrames() {
+func (g *Game) DrawFrames(dt float64) {
+	g.golfBall.Draw(dt, g.canvas)
 	g.currentSector.Draw(g.canvas)
+}
 
+func (g *Game) DoCalcualtions(dt float64) {
+	if !g.collisionCalculated {
+		for i, segment := range g.currentSector.Segments {
+			collides, collideTime := g.golfBall.CollidesWith(segment, 0.0001)
+
+			if collides {
+				g.collisionCalculated = true
+				g.collisionTime = collideTime
+				g.collisionSegment = &g.currentSector.Segments[i]
+				break
+			}
+		}
+	}
+
+	if g.collisionCalculated {
+		if dt >= g.collisionTime {
+			vx := g.golfBall.Vx(g.collisionTime)
+			vy := g.golfBall.Vy(g.collisionTime)
+			slope := g.collisionSegment.Df(g.collisionTime)
+
+			newRawVx, newRawVy := physics.CollisionReflectionAngle(vx, vy, slope)
+			newVx, newVy := physics.COLLISION_COEFFICIENT*newRawVx, physics.COLLISION_COEFFICIENT*newRawVy
+
+			g.golfBall.UpdateTrajectoryAtTime(newVx, newVy, g.collisionTime)
+
+			g.lastHitTime = time.Now()
+			g.collisionCalculated = false
+			g.collisionTime = 0
+			g.collisionSegment = nil
+		}
+	}
+}
+
+func (g *Game) secondsSinceLastHit() float64 {
 	dt := float64(time.Now().Sub(g.lastHitTime))
-	dtInSeconds := dt / float64(time.Second) * TIME_SCALE
-
-	g.golfBall.Draw(dtInSeconds, g.canvas)
+	return dt / float64(time.Second) * TIME_SCALE
 }

@@ -1,10 +1,13 @@
 package physics
 
-import "math"
+import (
+	"math"
+)
 
 const (
-	G                          = -9.8
-	AssumedFrictionCoefficient = 0.6
+	G                      = -9.8
+	COLLISION_COEFFICIENT  = 0.7
+	FRICTIONAL_COEFFICIENT = 0.6
 )
 
 type DeltaFunction func(float64) float64
@@ -31,14 +34,14 @@ func VelocityFunction(accel float64) DeltaFunction {
 // not accurate, and combines both static and kinetic friction
 func FrictionalForce(m, g float64) float64 {
 	n := m * g
-	return AssumedFrictionCoefficient * n
+	return FRICTIONAL_COEFFICIENT * n
 }
 
 func CollisionReflectionAngle(vx, vy, slope float64) (newVx, newVy float64) {
 	slopeAngle := math.Atan(slope)
 	vAngle := math.Atan(vy / vx)
 
-	newVangle := (slopeAngle + 180 - vAngle) + slopeAngle
+	newVangle := 2*slopeAngle - vAngle
 	newUnscaledVx := math.Cos(newVangle)
 	newUnscaledVy := math.Sin(newVangle)
 

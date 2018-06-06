@@ -12,14 +12,14 @@ type Range struct {
 	EndY   float64
 }
 
-type Func struct {
+type Segment struct {
 	Range Range
 
 	F  func(float64) float64
 	Df func(float64) float64
 }
 
-func NewRangedLineFunc(slope, startX, endX, startY float64) Func {
+func NewRangedLineSegment(slope, startX, endX, startY float64) Segment {
 	f := func(x float64) float64 {
 		return slope*(x-startX) + startY
 	}
@@ -27,7 +27,7 @@ func NewRangedLineFunc(slope, startX, endX, startY float64) Func {
 		return slope
 	}
 
-	return Func{
+	return Segment{
 		F:  f,
 		Df: df,
 
@@ -41,7 +41,7 @@ func NewRangedLineFunc(slope, startX, endX, startY float64) Func {
 	}
 }
 
-func NewLineFunc(slope, yIntercept float64) Func {
+func NewLineSegment(slope, yIntercept float64) Segment {
 	f := func(x float64) float64 {
 		return slope*x + yIntercept
 	}
@@ -49,13 +49,13 @@ func NewLineFunc(slope, yIntercept float64) Func {
 		return slope
 	}
 
-	return Func{
+	return Segment{
 		F:  f,
 		Df: df,
 	}
 }
 
-func NewSinFunc(waveLength float64, waveHeight float64, offset float64, intercept float64, onlyPositive bool) Func {
+func NewSinSegment(waveLength float64, waveHeight float64, offset float64, intercept float64, onlyPositive bool) Segment {
 	fWithoutOffset := func(x float64) float64 {
 		return math.Sin(math.Pi*(x/waveLength+offset)) * waveHeight
 	}
@@ -69,7 +69,7 @@ func NewSinFunc(waveLength float64, waveHeight float64, offset float64, intercep
 		return math.Sin(math.Pi*(x/waveLength+offset)) * waveHeight * math.Pi / waveLength
 	}
 
-	return Func{
+	return Segment{
 		F:  f,
 		Df: df,
 	}
