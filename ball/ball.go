@@ -2,6 +2,7 @@ package ball
 
 import (
 	"github.com/CyrusRoshan/Golf/physics"
+	"github.com/CyrusRoshan/Golf/sectors"
 )
 
 type Ball struct {
@@ -47,4 +48,34 @@ func (b *Ball) X(time float64) float64 {
 func (b *Ball) Y(time float64) float64 {
 	dY := b.Physics.Y(time)
 	return b.initialY + dY
+}
+
+func (b *Ball) CollidesWith(f sectors.Func, timePrecision float64) (doesCollide bool, dt float64) {
+	var ballX float64
+	for dt = 0; ballX <= f.Range.EndX; dt += 1 {
+		ballX = b.Physics.X(dt)
+		ballY := b.Physics.Y(dt)
+
+		pathY := f.F(ballX)
+
+		if ballY < pathY {
+			doesCollide = true
+
+			minDt := dt - 1
+			for ; dt > minDt; dt -= timePrecision {
+				ballX := b.Physics.X(dt)
+				ballY := b.Physics.Y(dt)
+
+				pathY := f.F(ballX)
+
+				if ballY >= pathY {
+					return true, dt
+				}
+			}
+		} else if ballY == pathY {
+			return true, dt
+		}
+	}
+
+	return false, 0
 }

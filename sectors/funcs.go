@@ -20,16 +20,25 @@ type Func struct {
 }
 
 func NewRangedLineFunc(slope, startX, endX, startY float64) Func {
-	unrangedFunc := NewLineFunc(slope, startY)
-	unrangedFunc.Range = Range{
-		StartX: startX,
-		EndX:   endX,
-
-		StartY: startY,
-		EndY:   unrangedFunc.F(endX - startX),
+	f := func(x float64) float64 {
+		return slope*(x-startX) + startY
+	}
+	df := func(x float64) float64 {
+		return slope
 	}
 
-	return unrangedFunc
+	return Func{
+		F:  f,
+		Df: df,
+
+		Range: Range{
+			StartX: startX,
+			EndX:   endX,
+
+			StartY: f(startX),
+			EndY:   f(endX),
+		},
+	}
 }
 
 func NewLineFunc(slope, yIntercept float64) Func {

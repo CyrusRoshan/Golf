@@ -48,8 +48,8 @@ func GenerateSector(sectorWidth float64, maxHeight float64, maxSegments int, col
 
 		newFunc := NewRangedLineFunc(slope, currentLength, currentLength+width, currentHeight)
 
-		currentLength += width
-		currentHeight = newFunc.F(width)
+		currentLength = newFunc.Range.EndX
+		currentHeight = newFunc.Range.EndY
 		s.Funcs = append(s.Funcs, newFunc)
 	}
 
