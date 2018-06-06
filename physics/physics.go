@@ -12,11 +12,11 @@ const (
 
 type DeltaFunction func(float64) float64
 
-type MotionFunctions struct {
-	X  DeltaFunction
-	Y  DeltaFunction
-	Vx DeltaFunction
-	Vy DeltaFunction
+type DeltaFunctions struct {
+	DX  DeltaFunction
+	DY  DeltaFunction
+	DVx DeltaFunction
+	DVy DeltaFunction
 }
 
 func DistanceFunction(v0 float64, accel float64) DeltaFunction {

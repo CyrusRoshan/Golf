@@ -31,6 +31,7 @@ type Game struct {
 	collisionCalculated bool
 	collisionTime       float64
 	collisionSegment    *sectors.Segment
+	collisionImpossible bool
 
 	golfBall ball.Ball
 
@@ -71,10 +72,8 @@ func (g *Game) Run() {
 		screen.LimitFPS(30, func() {
 			g.UpdateScreen()
 
-			dt := g.secondsSinceLastHit()
-
-			g.DoCalcualtions(dt)
-			g.DrawFrames(dt)
+			g.DoCalcualtions(g.secondsSinceLastHit())
+			g.DrawFrames(g.secondsSinceLastHit())
 		})
 	}
 }
@@ -102,9 +101,13 @@ func (g *Game) DrawFrames(dt float64) {
 }
 
 func (g *Game) DoCalcualtions(dt float64) {
+	if g.collisionImpossible {
+		return
+	}
+
 	if !g.collisionCalculated {
 		for i, segment := range g.currentSector.Segments {
-			collides, collideTime := g.golfBall.CollidesWith(segment, 0.0001)
+			collides, collideTime := g.golfBall.CollidesWith(segment, 0.001)
 
 			if collides {
 				g.collisionCalculated = true
@@ -112,6 +115,10 @@ func (g *Game) DoCalcualtions(dt float64) {
 				g.collisionSegment = &g.currentSector.Segments[i]
 				break
 			}
+		}
+
+		if !g.collisionCalculated {
+			g.collisionImpossible = true
 		}
 	}
 

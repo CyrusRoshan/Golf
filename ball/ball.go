@@ -10,7 +10,7 @@ import (
 )
 
 type Ball struct {
-	physics physics.MotionFunctions
+	physics physics.DeltaFunctions
 
 	sprite *pixel.Sprite
 	bounds pixel.Rect
@@ -34,12 +34,12 @@ func NewBall(x float64, y float64) Ball {
 		sprite: sprite,
 		bounds: bounds,
 
-		physics: physics.MotionFunctions{
-			X: physics.DistanceFunction(0, 0),
-			Y: physics.DistanceFunction(0, physics.G),
+		physics: physics.DeltaFunctions{
+			DX: physics.DistanceFunction(0, 0),
+			DY: physics.DistanceFunction(0, physics.G),
 
-			Vx: physics.VelocityFunction(0),
-			Vy: physics.VelocityFunction(physics.G),
+			DVx: physics.VelocityFunction(0),
+			DVy: physics.VelocityFunction(physics.G),
 		},
 	}
 }
@@ -50,48 +50,60 @@ func (b *Ball) Draw(time float64, t pixel.Target) {
 }
 
 func (b *Ball) UpdateTrajectoryAtTime(vx, vy, time float64) {
-	x := b.X(time)
-	y := b.Y(time)
-
 	b.initialVx = vx
 	b.initialVy = vy
-	b.initialX = x
-	b.initialY = y
+	b.initialX = b.X(time)
+	b.initialY = b.Y(time)
 
-	b.physics = physics.MotionFunctions{
-		X: physics.DistanceFunction(vx, 0),
-		Y: physics.DistanceFunction(vy, physics.G),
+	b.physics = physics.DeltaFunctions{
+		DX: physics.DistanceFunction(vx, 0),
+		DY: physics.DistanceFunction(vy, physics.G),
 
-		Vx: physics.VelocityFunction(0),
-		Vy: physics.VelocityFunction(physics.G),
+		DVx: physics.VelocityFunction(0),
+		DVy: physics.VelocityFunction(physics.G),
 	}
 }
 
 func (b *Ball) Vx(time float64) float64 {
-	dVx := b.physics.Vx(time)
+	dVx := b.physics.DVx(time)
 	return b.initialVx + dVx
 }
 
 func (b *Ball) Vy(time float64) float64 {
-	dVy := b.physics.Vy(time)
+	dVy := b.physics.DVy(time)
 	return b.initialVy + dVy
 }
 
 func (b *Ball) X(time float64) float64 {
-	dX := b.physics.X(time)
+	dX := b.physics.DX(time)
 	return b.initialX + dX
 }
 
 func (b *Ball) Y(time float64) float64 {
-	dY := b.physics.Y(time)
+	dY := b.physics.DY(time)
 	return b.initialY + dY
 }
 
+// can be optimized by using binary search
 func (b *Ball) CollidesWith(segment sectors.Segment, timePrecision float64) (doesCollide bool, dt float64) {
-	var ballX float64
-	for dt = 0; ballX <= segment.Range.EndX; dt += 1 {
-		ballX = b.X(dt)
+	if b.initialVx > 0 && b.initialX > segment.Range.EndX ||
+		b.initialVx < 0 && b.initialX < segment.Range.StartX {
+		return
+	}
+
+	ballWasInRange := false
+	for dt = 0; true; dt += timePrecision {
+		ballX := b.X(dt)
 		ballY := b.Y(dt)
+
+		if ballX >= segment.Range.StartX && ballX <= segment.Range.EndX {
+			ballWasInRange = true
+		} else {
+			if ballWasInRange {
+				break
+			}
+			continue
+		}
 
 		pathY := segment.F(ballX)
 
@@ -99,7 +111,7 @@ func (b *Ball) CollidesWith(segment sectors.Segment, timePrecision float64) (doe
 			doesCollide = true
 
 			minDt := dt - 1
-			for ; dt > minDt; dt -= timePrecision {
+			for ; dt > minDt; dt -= timePrecision / 2 {
 				ballX := b.X(dt)
 				ballY := b.Y(dt)
 

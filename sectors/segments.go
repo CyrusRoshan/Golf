@@ -41,7 +41,7 @@ func NewRangedLineSegment(slope, startX, endX, startY float64) Segment {
 	}
 }
 
-func NewLineSegment(slope, yIntercept float64) Segment {
+func newLineSegment(slope, yIntercept float64) Segment {
 	f := func(x float64) float64 {
 		return slope*x + yIntercept
 	}
