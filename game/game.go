@@ -1,7 +1,6 @@
 package game
 
 import (
-	"fmt"
 	"math"
 	"time"
 
@@ -31,12 +30,11 @@ type Game struct {
 
 	lastHitTime         time.Time
 	waitingForHit       bool
-	collisionCalculated bool
-	collisionTime       float64
-	collisionSegment    *sectors.Segment
 	collisionImpossible bool
+	finishedAnimating   bool
 
-	golfBall ball.Ball
+	golfBall  *ball.Ball
+	ballPaths []*ballPath
 
 	currentSector *sectors.Sector
 	nextSector    *sectors.Sector
@@ -50,7 +48,8 @@ func NewGame(win *pixelgl.Window) *Game {
 		window: win,
 		canvas: canvas,
 
-		lastHitTime: time.Now(),
+		lastHitTime:       time.Now(),
+		finishedAnimating: true,
 
 		width:  canvas.Bounds().W(),
 		height: canvas.Bounds().H(),
@@ -65,25 +64,39 @@ func NewGame(win *pixelgl.Window) *Game {
 	g.currentSector = &currentSector
 
 	// set up ball
-	g.golfBall = ball.NewBall(sectors.MIN_SEGMENT_WIDTH, sectors.MAX_STRUCTURE_HEIGHT)
+	golfBall := ball.NewBall(sectors.MIN_SEGMENT_WIDTH, sectors.MAX_STRUCTURE_HEIGHT)
+	g.golfBall = &golfBall
 
 	return &g
 }
 
 func (g *Game) Run() {
 	for !g.window.Closed() {
-		screen.LimitFPS(30, func() {
+		screen.LimitFPS(10, func() {
 			screen.ShowDebugFPS("Golf", g.window)
-
-			fmt.Println("A")
-			g.GetInput(g.secondsSinceLastHit())
-			fmt.Println("B")
-			g.CalcualteDeltas(g.secondsSinceLastHit())
-			fmt.Println("C")
-			g.DrawFrames(g.secondsSinceLastHit())
-			fmt.Println("D")
-
+			g.currentSector.Draw(g.canvas)
 			g.UpdateScreen()
+
+			if g.finishedAnimating {
+				if g.collisionImpossible {
+					golfBall := ball.NewBall(sectors.MIN_SEGMENT_WIDTH, sectors.MAX_STRUCTURE_HEIGHT)
+					g.golfBall = &golfBall
+
+					g.collisionImpossible = false
+					g.waitingForHit = false // has to drop down to ground first
+				} else if g.waitingForHit {
+					g.GetInput(g.secondsSinceLastHit()) // todo: fix this
+				}
+
+				if !g.collisionImpossible && !g.waitingForHit {
+					g.ballPaths, g.collisionImpossible, g.waitingForHit = g.CalcualtePaths(g.golfBall, g.currentSector)
+					g.lastHitTime = time.Now()
+					g.finishedAnimating = false
+				}
+			}
+
+			dt := g.secondsSinceLastHit()
+			g.finishedAnimating = g.DrawCurrentPath(dt)
 		})
 	}
 }
@@ -105,64 +118,103 @@ func (g *Game) DrawTransitions() {
 	// sectorMatrix := pixel.IM.Moved(moveVec)
 }
 
-func (g *Game) DrawFrames(dt float64) {
-	g.golfBall.Draw(dt, g.canvas)
-	g.currentSector.Draw(g.canvas)
+func (g *Game) DrawCurrentPath(dt float64) (finishedDrawing bool) {
+	var i int
+	var currentPath *ballPath
+	for i, currentPath = range g.ballPaths {
+		if dt >= currentPath.StartTime &&
+			dt <= currentPath.EndTime {
+			break
+		}
+	}
+
+	time := dt - currentPath.StartTime
+
+	if i == len(g.ballPaths)-1 {
+		if g.collisionImpossible {
+			ballX := currentPath.Ball.X(time)
+			ballY := currentPath.Ball.Y(time)
+
+			if !g.canvas.Bounds().Contains(pixel.V(ballX, ballY)) {
+				finishedDrawing = true
+			}
+		} else if g.waitingForHit { // waiting for a hit
+			time = 0
+			finishedDrawing = true
+		}
+	}
+
+	currentPath.Ball.Draw(time, g.canvas)
+	return finishedDrawing
 }
 
-func (g *Game) CalcualteDeltas(dt float64) {
-	if g.collisionImpossible || g.waitingForHit {
-		return
+type ballPath struct {
+	Ball      *ball.Ball
+	StartTime float64
+	EndTime   float64
+}
+
+// TODO: Move to physics
+func (g *Game) CalcualtePaths(golfBall *ball.Ball, currentSector *sectors.Sector) (paths []*ballPath, collisionImpossible, waitingForHit bool) {
+	currentTime := 0.0
+	currentBall := golfBall
+
+	lastPath := &ballPath{
+		Ball:      currentBall,
+		StartTime: currentTime,
 	}
+	paths = append(paths, lastPath)
 
-	if !g.collisionCalculated {
-		g.collisionCalculated, g.collisionTime, g.collisionSegment = g.golfBall.FindCollision(&g.currentSector.Segments, dt, 3)
-		fmt.Println("CURRENT AND COLLISION TIMES", dt, g.collisionTime)
+	for {
+		collisionCalculated, collisionTime, collisionSegment := currentBall.FindCollision(&currentSector.Segments, 0, 3)
+		currentTime += collisionTime
 
-		if !g.collisionCalculated {
-			fmt.Println("NO COLLISION!")
-			g.collisionImpossible = true
+		if !collisionCalculated {
+			// flies out of screen
+			collisionImpossible = true
+			break
 		}
-	}
 
-	if g.collisionCalculated {
-		if dt >= g.collisionTime {
-			vx := g.golfBall.Vx(g.collisionTime)
-			vy := g.golfBall.Vy(g.collisionTime)
-			slope := g.collisionSegment.Slope(g.collisionTime)
+		vx := currentBall.Vx(collisionTime)
+		vy := currentBall.Vy(collisionTime)
+		slope := collisionSegment.Slope(currentBall.X(collisionTime))
 
-			newRawVx, newRawVy := physics.CollisionReflectionAngle(vx, vy, slope)
-			newVx := physics.COLLISION_COEFFICIENT * newRawVx
-			newVy := physics.COLLISION_COEFFICIENT * newRawVy
+		newRawVx, newRawVy := physics.CollisionReflectionAngle(vx, vy, slope)
+		newVx := physics.COLLISION_COEFFICIENT * newRawVx
+		newVy := physics.COLLISION_COEFFICIENT * newRawVy
 
-			newVx -= math.Copysign(physics.KINETIC_FRICTION, newVx)
-			fmt.Println("NEWV", newVx, newVy)
+		newVx -= math.Copysign(physics.KINETIC_FRICTION, newVx)
 
-			var xPaused, yPaused bool
-			if math.Abs(newVx) <= physics.KINETIC_FRICTION {
-				newVx = 0
-				xPaused = true
-			}
-			if math.Abs(newVy) <= physics.MIN_Y_VELOCITY {
-				newVy = 0
-				yPaused = true
-			}
-			if xPaused && yPaused {
-				g.waitingForHit = true
-			}
-
-			fmt.Println("velocity", vx, vy)
-			fmt.Println("slope", slope)
-			fmt.Println("NEWVRAWS,", newRawVx, newRawVy)
-			fmt.Println("NEWV", newVx, newVy)
-			g.golfBall.UpdateTrajectoryAtTime(newVx, newVy, g.collisionTime)
-
-			g.lastHitTime = time.Now()
-			g.collisionCalculated = false
-			g.collisionTime = 0
-			g.collisionSegment = nil
+		var xPaused, yPaused bool
+		if math.Abs(newVx) <= physics.KINETIC_FRICTION {
+			newVx = 0
+			xPaused = true
 		}
+		if math.Abs(newVy) <= physics.MIN_Y_VELOCITY {
+			newVy = 0
+			yPaused = true
+		}
+
+		newBall := ball.NewBallWithVelocity(currentBall.X(collisionTime), currentBall.Y(collisionTime), newVx, newVy)
+		currentBall = &newBall
+		lastPath.EndTime = currentTime
+
+		currentPath := &ballPath{
+			Ball:      &newBall,
+			StartTime: currentTime,
+		}
+		paths = append(paths, currentPath)
+
+		if xPaused && yPaused {
+			waitingForHit = true
+			currentPath.EndTime = currentTime
+			break
+		}
+
+		lastPath = currentPath
 	}
+
+	return paths, collisionImpossible, waitingForHit
 }
 
 func (g *Game) secondsSinceLastHit() float64 {
@@ -196,7 +248,6 @@ func (g *Game) GetInput(dt float64) {
 	if changed {
 		g.golfBall.UpdateTrajectoryAtTime(vx, vy, dt)
 		g.lastHitTime = time.Now()
-		g.collisionCalculated = false
 		g.collisionImpossible = false
 	}
 }

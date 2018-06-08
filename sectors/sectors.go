@@ -1,7 +1,6 @@
 package sectors
 
 import (
-	"fmt"
 	"image/color"
 	"math"
 
@@ -40,7 +39,7 @@ func GenerateSector(sectorWidth float64, maxHeight float64, maxSegments int, col
 	currentHeight := 50.0
 
 	segmentWidths := generateSegmentWidths(maxSegments, sectorWidth)
-	for i, width := range segmentWidths {
+	for _, width := range segmentWidths {
 		unconstrainedSlope := mathutils.RandFloat(-1.5, 1.5)
 
 		var slope float64
@@ -48,14 +47,6 @@ func GenerateSector(sectorWidth float64, maxHeight float64, maxSegments int, col
 			slope = 0
 		} else {
 			slope = mathutils.ConstrainLineSlope(unconstrainedSlope, currentHeight, width, MIN_STRUCTURE_HEIGHT, maxHeight)
-		}
-
-		if i == 0 {
-			fmt.Println("DELETE THIS", i)
-			slope = -0.05
-		}
-		if i == 1 {
-			slope = 2
 		}
 
 		newSegment := NewRangedLineSegment(slope, currentLength, currentLength+width, currentHeight)

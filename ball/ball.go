@@ -1,7 +1,6 @@
 package ball
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/CyrusRoshan/Golf/physics"
@@ -42,6 +41,32 @@ func NewBall(x, y float64) Ball {
 
 			DTdx: physics.TimeFunction(0, 0),
 			DTdy: physics.TimeFunction(0, physics.G),
+		},
+	}
+}
+
+func NewBallWithVelocity(x, y, vx, vy float64) Ball {
+	sprite, bounds := sprites.LoadSprite("img/ball.png")
+
+	return Ball{
+		initialX: x,
+		initialY: y,
+
+		initialVx: vx,
+		initialVy: vy,
+
+		sprite: sprite,
+		bounds: bounds,
+
+		physics: physics.DeltaFunctions{
+			DX: physics.DistanceFunction(vx, 0),
+			DY: physics.DistanceFunction(vy, physics.G),
+
+			DVx: physics.VelocityFunction(0),
+			DVy: physics.VelocityFunction(physics.G),
+
+			DTdx: physics.TimeFunction(vx, 0),
+			DTdy: physics.TimeFunction(vy, physics.G),
 		},
 	}
 }
@@ -113,7 +138,7 @@ func (b *Ball) FindCollision(segments *[]sectors.Segment, startTime, heightPreci
 		}
 	}
 
-	// for ball dropping down
+	// for ball dropping straight down
 	if b.initialVx == 0 {
 		if !overSector {
 			return false, 0, nil
@@ -125,70 +150,38 @@ func (b *Ball) FindCollision(segments *[]sectors.Segment, startTime, heightPreci
 		if dt < 0 {
 			return false, 0, nil
 		}
-
-		t1, t2 := b.TgivenY(y + heightPrecision)
-		fmt.Println("TIMES", t1, t2)
-		fmt.Println("VERIFY EQUAlITY:", b.Y(t1), b.Y(t2), y+heightPrecision)
-		fmt.Printf("ValueDump: dt: %f\n x: %f\n vx: %f\n y: %f\n vy %f\n", dt, b.initialX, b.initialVx, b.initialY, b.initialVy)
-
 		return true, dt, &((*segments)[startSector])
 	}
 
 	// check all sectors the ball is traveling towards, in order, for collisions
 	for i := startSector; i >= 0 && i < len(*segments); i += searchDirection {
 		segment := (*segments)[i]
-		fmt.Println("segment num", i)
 
-		var _, endPosition pixel.Vec
+		var startPosition, endPosition pixel.Vec
 		if searchDirection > 0 {
-			// startPosition = segment.Range.Start
+			startPosition = segment.Range.Start
 			endPosition = segment.Range.End
 		} else {
-			// startPosition = segment.Range.End
+			startPosition = segment.Range.End
 			endPosition = segment.Range.Start
 		}
 
 		// find range of time that the ball can reasonbly be colliding with the segment in
-		minTime := startTime
+		minTime := math.Max(startTime, b.TgivenX(startPosition.X))
 		maxTime := b.TgivenX(endPosition.X)
 
 		if b.Y(maxTime) > endPosition.Y && // ball is flying over this segment
-			b.Y(startTime) > segment.Y(b.X(startTime)) {
-			fmt.Println("----------------")
+			b.Y(minTime) > segment.Y(b.X(minTime)) {
 			continue
 		}
 
-		fmt.Println("PRESTART-----")
-		fmt.Println("ballX", b.X(startTime))
-		fmt.Println("ballY", b.Y(startTime))
-		fmt.Println("ballVY", b.Vy(startTime))
-		fmt.Println("segmentY", segment.Y(b.X(startTime)))
-		fmt.Println(segment.Range)
-		fmt.Println("dt", dt)
-
-		fmt.Println("START")
 		for {
 			midpointTime := (minTime + maxTime) / 2
 			ballY := b.Y(midpointTime)
 			ballX := b.X(midpointTime)
-			ballVY := b.Vy(midpointTime)
 			segmentY := segment.Y(ballX)
 
-			if math.Abs(maxTime-minTime) < heightPrecision {
-				fmt.Println("HERE-----")
-			}
-			fmt.Println()
-			fmt.Println("ballX", ballX)
-			fmt.Println("ballY", ballY)
-			fmt.Println(segment.Range)
-			fmt.Println("segmentY", segmentY)
-			fmt.Println("ballVY", ballVY)
-			fmt.Println("ballVX", b.Vx(midpointTime))
-			fmt.Println("dt", midpointTime)
-
 			distanceAboveSegment := ballY - segmentY
-			fmt.Println("Dist", distanceAboveSegment)
-
 			if distanceAboveSegment > 0 &&
 				distanceAboveSegment < heightPrecision {
 				dt = midpointTime
@@ -196,14 +189,12 @@ func (b *Ball) FindCollision(segments *[]sectors.Segment, startTime, heightPreci
 				break
 			}
 
-			if ballVY < 0 && distanceAboveSegment > 0 ||
-				ballVY > 0 && distanceAboveSegment < 0 {
+			if distanceAboveSegment > 0 {
 				minTime = midpointTime
 			} else {
 				maxTime = midpointTime
 			}
 		}
-		fmt.Println("END")
 
 		if doesCollide {
 			return true, dt, &((*segments)[i])
