@@ -1,6 +1,7 @@
 package screen
 
 import (
+	"fmt"
 	"math"
 	"time"
 
@@ -36,6 +37,16 @@ var (
 	frames = 0
 	second = time.Tick(time.Second)
 )
+
+func ShowDebugFPS(title string, window *pixelgl.Window) {
+	frames++
+	select {
+	case <-second:
+		window.SetTitle(fmt.Sprintf("%s | FPS: %d", title, frames))
+		frames = 0
+	default:
+	}
+}
 
 func ScaleWindowToCanvas(win *pixelgl.Window, canvas *pixelgl.Canvas) {
 	winBounds := win.Bounds()

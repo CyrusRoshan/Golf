@@ -2,56 +2,53 @@ package sectors
 
 import (
 	"math"
+
+	"github.com/faiface/pixel"
 )
 
 type Range struct {
-	StartX float64
-	EndX   float64
+	Start pixel.Vec
 
-	StartY float64
-	EndY   float64
+	End pixel.Vec
 }
 
 type Segment struct {
 	Range Range
 
-	F  func(float64) float64
-	Df func(float64) float64
+	Y     func(float64) float64 // TODO: rename to Y
+	Slope func(float64) float64 // TODO: rename to Slope
 }
 
 func NewRangedLineSegment(slope, startX, endX, startY float64) Segment {
-	f := func(x float64) float64 {
+	yf := func(x float64) float64 {
 		return slope*(x-startX) + startY
 	}
-	df := func(x float64) float64 {
+	slopef := func(x float64) float64 {
 		return slope
 	}
 
 	return Segment{
-		F:  f,
-		Df: df,
+		Y:     yf,
+		Slope: slopef,
 
 		Range: Range{
-			StartX: startX,
-			EndX:   endX,
-
-			StartY: f(startX),
-			EndY:   f(endX),
+			Start: pixel.V(startX, yf(startX)),
+			End:   pixel.V(endX, yf(endX)),
 		},
 	}
 }
 
 func newLineSegment(slope, yIntercept float64) Segment {
-	f := func(x float64) float64 {
+	yf := func(x float64) float64 {
 		return slope*x + yIntercept
 	}
-	df := func(x float64) float64 {
+	slopef := func(x float64) float64 {
 		return slope
 	}
 
 	return Segment{
-		F:  f,
-		Df: df,
+		Y:     yf,
+		Slope: slopef,
 	}
 }
 
@@ -61,16 +58,16 @@ func NewSinSegment(waveLength float64, waveHeight float64, offset float64, inter
 	}
 
 	interceptDiff := intercept - fWithoutOffset(0)
-	f := func(x float64) float64 {
+	yf := func(x float64) float64 {
 		return fWithoutOffset(x) + interceptDiff
 	}
 
-	df := func(x float64) float64 {
+	slopef := func(x float64) float64 {
 		return math.Sin(math.Pi*(x/waveLength+offset)) * waveHeight * math.Pi / waveLength
 	}
 
 	return Segment{
-		F:  f,
-		Df: df,
+		Y:     yf,
+		Slope: slopef,
 	}
 }

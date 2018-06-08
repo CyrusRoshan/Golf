@@ -1,6 +1,8 @@
 package game
 
 import (
+	"fmt"
+	"math"
 	"time"
 
 	"github.com/CyrusRoshan/Golf/ball"
@@ -15,7 +17,7 @@ import (
 
 const (
 	DEBUG_SCALE = 0.7
-	TIME_SCALE  = 7.0
+	TIME_SCALE  = 15.0
 )
 
 type Game struct {
@@ -28,6 +30,7 @@ type Game struct {
 	height float64
 
 	lastHitTime         time.Time
+	waitingForHit       bool
 	collisionCalculated bool
 	collisionTime       float64
 	collisionSegment    *sectors.Segment
@@ -70,10 +73,17 @@ func NewGame(win *pixelgl.Window) *Game {
 func (g *Game) Run() {
 	for !g.window.Closed() {
 		screen.LimitFPS(30, func() {
-			g.UpdateScreen()
+			screen.ShowDebugFPS("Golf", g.window)
 
-			g.DoCalcualtions(g.secondsSinceLastHit())
+			fmt.Println("A")
+			g.GetInput(g.secondsSinceLastHit())
+			fmt.Println("B")
+			g.CalcualteDeltas(g.secondsSinceLastHit())
+			fmt.Println("C")
 			g.DrawFrames(g.secondsSinceLastHit())
+			fmt.Println("D")
+
+			g.UpdateScreen()
 		})
 	}
 }
@@ -100,24 +110,17 @@ func (g *Game) DrawFrames(dt float64) {
 	g.currentSector.Draw(g.canvas)
 }
 
-func (g *Game) DoCalcualtions(dt float64) {
-	if g.collisionImpossible {
+func (g *Game) CalcualteDeltas(dt float64) {
+	if g.collisionImpossible || g.waitingForHit {
 		return
 	}
 
 	if !g.collisionCalculated {
-		for i, segment := range g.currentSector.Segments {
-			collides, collideTime := g.golfBall.CollidesWith(segment, 0.001)
-
-			if collides {
-				g.collisionCalculated = true
-				g.collisionTime = collideTime
-				g.collisionSegment = &g.currentSector.Segments[i]
-				break
-			}
-		}
+		g.collisionCalculated, g.collisionTime, g.collisionSegment = g.golfBall.FindCollision(&g.currentSector.Segments, dt, 3)
+		fmt.Println("CURRENT AND COLLISION TIMES", dt, g.collisionTime)
 
 		if !g.collisionCalculated {
+			fmt.Println("NO COLLISION!")
 			g.collisionImpossible = true
 		}
 	}
@@ -126,11 +129,32 @@ func (g *Game) DoCalcualtions(dt float64) {
 		if dt >= g.collisionTime {
 			vx := g.golfBall.Vx(g.collisionTime)
 			vy := g.golfBall.Vy(g.collisionTime)
-			slope := g.collisionSegment.Df(g.collisionTime)
+			slope := g.collisionSegment.Slope(g.collisionTime)
 
 			newRawVx, newRawVy := physics.CollisionReflectionAngle(vx, vy, slope)
-			newVx, newVy := physics.COLLISION_COEFFICIENT*newRawVx, physics.COLLISION_COEFFICIENT*newRawVy
+			newVx := physics.COLLISION_COEFFICIENT * newRawVx
+			newVy := physics.COLLISION_COEFFICIENT * newRawVy
 
+			newVx -= math.Copysign(physics.KINETIC_FRICTION, newVx)
+			fmt.Println("NEWV", newVx, newVy)
+
+			var xPaused, yPaused bool
+			if math.Abs(newVx) <= physics.KINETIC_FRICTION {
+				newVx = 0
+				xPaused = true
+			}
+			if math.Abs(newVy) <= physics.MIN_Y_VELOCITY {
+				newVy = 0
+				yPaused = true
+			}
+			if xPaused && yPaused {
+				g.waitingForHit = true
+			}
+
+			fmt.Println("velocity", vx, vy)
+			fmt.Println("slope", slope)
+			fmt.Println("NEWVRAWS,", newRawVx, newRawVy)
+			fmt.Println("NEWV", newVx, newVy)
 			g.golfBall.UpdateTrajectoryAtTime(newVx, newVy, g.collisionTime)
 
 			g.lastHitTime = time.Now()
@@ -144,4 +168,35 @@ func (g *Game) DoCalcualtions(dt float64) {
 func (g *Game) secondsSinceLastHit() float64 {
 	dt := float64(time.Now().Sub(g.lastHitTime))
 	return dt / float64(time.Second) * TIME_SCALE
+}
+
+func (g *Game) GetInput(dt float64) {
+	vx, vy := g.golfBall.Vx(dt), g.golfBall.Vy(dt)
+
+	changed := false
+
+	if g.window.Pressed(pixelgl.KeyLeft) || g.window.Pressed(pixelgl.KeyA) {
+		vx -= 10.0
+		changed = true
+	}
+	if g.window.Pressed(pixelgl.KeyRight) || g.window.Pressed(pixelgl.KeyD) {
+		vx += 10.0
+		changed = true
+	}
+
+	if g.window.Pressed(pixelgl.KeyUp) || g.window.Pressed(pixelgl.KeyW) {
+		vy += 10.0
+		changed = true
+	}
+	if g.window.Pressed(pixelgl.KeyDown) || g.window.Pressed(pixelgl.KeyS) {
+		vy -= 10.0
+		changed = true
+	}
+
+	if changed {
+		g.golfBall.UpdateTrajectoryAtTime(vx, vy, dt)
+		g.lastHitTime = time.Now()
+		g.collisionCalculated = false
+		g.collisionImpossible = false
+	}
 }

@@ -1,6 +1,7 @@
 package mathutils
 
 import (
+	"math"
 	"math/rand"
 	"time"
 )
@@ -11,6 +12,10 @@ func init() {
 
 func RandFloat(min float64, max float64) float64 {
 	return min + rand.Float64()*(max-min)
+}
+
+func PythagoreanC(a, b float64) float64 {
+	return math.Sqrt(math.Pow(a, 2) + math.Pow(b, 2))
 }
 
 func Constrain(value, min, max float64) float64 {

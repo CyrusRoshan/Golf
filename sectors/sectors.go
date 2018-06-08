@@ -1,6 +1,7 @@
 package sectors
 
 import (
+	"fmt"
 	"image/color"
 	"math"
 
@@ -39,7 +40,7 @@ func GenerateSector(sectorWidth float64, maxHeight float64, maxSegments int, col
 	currentHeight := 50.0
 
 	segmentWidths := generateSegmentWidths(maxSegments, sectorWidth)
-	for _, width := range segmentWidths {
+	for i, width := range segmentWidths {
 		unconstrainedSlope := mathutils.RandFloat(-1.5, 1.5)
 
 		var slope float64
@@ -49,10 +50,18 @@ func GenerateSector(sectorWidth float64, maxHeight float64, maxSegments int, col
 			slope = mathutils.ConstrainLineSlope(unconstrainedSlope, currentHeight, width, MIN_STRUCTURE_HEIGHT, maxHeight)
 		}
 
+		if i == 0 {
+			fmt.Println("DELETE THIS", i)
+			slope = -0.05
+		}
+		if i == 1 {
+			slope = 2
+		}
+
 		newSegment := NewRangedLineSegment(slope, currentLength, currentLength+width, currentHeight)
 
-		currentLength = newSegment.Range.EndX
-		currentHeight = newSegment.Range.EndY
+		currentLength = newSegment.Range.End.X
+		currentHeight = newSegment.Range.End.Y
 		s.Segments = append(s.Segments, newSegment)
 	}
 
@@ -89,10 +98,10 @@ func triangulateSector(s Sector) (polygons []*imdraw.IMDraw) {
 		imd := imdraw.New(nil)
 		imd.Color = s.Color
 
-		imd.Push(pixel.V(segment.Range.StartX, segment.Range.StartY))
-		imd.Push(pixel.V(segment.Range.EndX, segment.Range.EndY))
-		imd.Push(pixel.V(segment.Range.EndX, 0))
-		imd.Push(pixel.V(segment.Range.StartX, 0))
+		imd.Push(segment.Range.Start)
+		imd.Push(segment.Range.End)
+		imd.Push(pixel.V(segment.Range.End.X, 0))
+		imd.Push(pixel.V(segment.Range.Start.X, 0))
 
 		imd.Polygon(SECTOR_LINE_WIDTH)
 
